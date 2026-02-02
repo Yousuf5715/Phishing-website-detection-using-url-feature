@@ -21,6 +21,12 @@ python -m tldextract
 python src/train_model.py --data data/sample_urls.csv --out models/model.joblib
 ```
 
+If you'd like the script to create a starter CSV at the path you passed to `--data` when that file doesn't exist, pass the `--create-if-missing` flag:
+
+```bash
+python src/train_model.py --data data/my_urls.csv --create-if-missing --out models/model.joblib
+```
+
 3. Run the API and open the web UI at http://localhost:5000
 
 ```bash
