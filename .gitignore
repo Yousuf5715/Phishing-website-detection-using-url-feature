@@ -3,6 +3,7 @@ env/
 ENV/
 .venv/
 models/
+!models/model.joblib
 *.pyc
 __pycache__/
 .env
