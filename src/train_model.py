@@ -29,10 +29,20 @@ def train(data_csv: str, model_out: str, create_if_missing: bool = False):
     if 'url' not in df.columns or 'label' not in df.columns:
         raise ValueError("CSV must contain 'url' and 'label' columns (header: url,label). Use --create-if-missing to create a starter CSV if you don't have one.")
 
+    # Ensure 'label' is numeric and drop rows without labels
+    df['label'] = pd.to_numeric(df['label'], errors='coerce')
+    missing_labels = df['label'].isna().sum()
+    if missing_labels > 0:
+        print(f"Warning: {missing_labels} rows have missing or invalid labels and will be ignored for training.")
+    df = df.dropna(subset=['label'])
+
     X = df['url'].apply(lambda u: extract_features(u))
     X = list(X)
     X = pd.DataFrame(X, columns=FEATURE_NAMES)
     y = df['label'].astype(int)
+
+    if y.nunique() < 2:
+        raise ValueError("Need at least two classes in 'label' to train. Provide more labeled data.")
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
