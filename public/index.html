@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>URL Phishing Detector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+      body { background: #f5f7fb; }
+      .card-hero { background: linear-gradient(90deg,#0d6efd22,#6f42c122); }
+      .example-badge { cursor: pointer; }
+      .result-safe { color: #0f5132; }
+      .result-phish { color: #842029; }
+      .prob-bar { height: 12px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="#">URL Phishing Detector</a>
+        <div class="d-none d-md-block text-muted">Minimal ML demo — URL-only features</div>
+      </div>
+    </nav>
+
+    <main class="container py-5">
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <div class="card shadow-sm card-hero">
+            <div class="card-body">
+              <h4 class="card-title">Check a URL</h4>
+              <p class="text-muted">Paste a URL below to get a phishing likelihood score.</p>
+
+              <div class="input-group mb-3">
+                <input id="url" type="text" class="form-control form-control-lg" placeholder="https://example.com/login" aria-label="URL">
+                <button id="detectBtn" class="btn btn-primary btn-lg" type="button"><i class="fas fa-shield-alt me-2"></i>Detect</button>
+              </div>
+
+              <div id="resultCard" class="mt-3 d-none">
+                <div class="card border-0 shadow-sm">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div id="labelText" class="h5 mb-1">Checking...</div>
+                        <div id="urlText" class="text-muted small"></div>
+                      </div>
+                      <div class="text-end">
+                        <div id="probText" class="small text-muted">Probability</div>
+                        <div id="probVal" class="h6 fw-bold">—</div>
+                      </div>
+                    </div>
+                    <div class="mt-3">
+                      <div class="progress">
+                        <div id="probBar" class="progress-bar prob-bar" role="progressbar" style="width:0%"></div>
+                      </div>
+                    </div>
+                    <div class="mt-3 small text-muted">Prediction: <span id="predBadge"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4">
+                <small class="text-muted">Try examples:</small>
+                <div class="mt-2">
+                  <span class="badge bg-light border example-badge" data-url="http://192.168.0.1/login">192.168.0.1/login</span>
+                  <span class="badge bg-light border example-badge" data-url="https://secure-paypal.com/confirm">secure-paypal.com/confirm</span>
+                  <span class="badge bg-light border example-badge" data-url="https://www.google.com">google.com</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mt-4 shadow-sm">
+            <div class="card-body">
+              <h6 class="mb-2">Analysis Notes</h6>
+              <ul class="small mb-0">
+                <li>Model uses URL-only textual features (length, digits, keywords, IPs, redirects).</li>
+                <li>For production, combine with WHOIS, TLS, content analysis, and blacklists.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h6>History</h6>
+              <div id="history" class="list-group list-group-flush small"></div>
+              <div class="mt-3 d-flex justify-content-between">
+                <button id="clearHistory" class="btn btn-sm btn-outline-secondary">Clear</button>
+                <button id="copyModelInfo" class="btn btn-sm btn-outline-primary">Copy Result</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="text-center text-muted py-3">&copy; Example — improve dataset before production use</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const detectBtn = document.getElementById('detectBtn');
+      const urlInput = document.getElementById('url');
+      const resultCard = document.getElementById('resultCard');
+      const labelText = document.getElementById('labelText');
+      const urlText = document.getElementById('urlText');
+      const probVal = document.getElementById('probVal');
+      const probBar = document.getElementById('probBar');
+      const predBadge = document.getElementById('predBadge');
+      const historyEl = document.getElementById('history');
+      const clearHistory = document.getElementById('clearHistory');
+      const copyModelInfo = document.getElementById('copyModelInfo');
+
+      function showResult(url, prediction, probability) {
+        resultCard.classList.remove('d-none');
+        urlText.textContent = url;
+        const pct = (probability === null || probability === undefined) ? 0 : Math.round(probability * 100);
+        probVal.textContent = probability === null ? 'n/a' : (pct + '%');
+        probBar.style.width = pct + '%';
+        if (prediction === 1) {
+          labelText.textContent = 'Likely Phishing';
+          predBadge.innerHTML = '<span class="badge bg-danger">Phishing</span>';
+          probBar.className = 'progress-bar bg-danger prob-bar';
+        } else {
+          labelText.textContent = 'Likely Legitimate';
+          predBadge.innerHTML = '<span class="badge bg-success">Legitimate</span>';
+          probBar.className = 'progress-bar bg-success prob-bar';
+        }
+        addHistory(url, prediction, probability);
+      }
+
+      function addHistory(url, prediction, probability) {
+        const entry = { url, prediction, probability, time: new Date().toLocaleString() };
+        const items = JSON.parse(localStorage.getItem('phish_history') || '[]');
+        items.unshift(entry);
+        localStorage.setItem('phish_history', JSON.stringify(items.slice(0, 20)));
+        renderHistory();
+      }
+
+      function renderHistory() {
+        const items = JSON.parse(localStorage.getItem('phish_history') || '[]');
+        historyEl.innerHTML = items.map(it => {
+          const label = it.prediction === 1 ? '<span class="badge bg-danger ms-1">Phish</span>' : '<span class="badge bg-success ms-1">OK</span>';
+          return `<div class="list-group-item d-flex justify-content-between align-items-start"><div><div class="fw-bold small">${it.url}</div><div class="small text-muted">${it.time}</div></div><div class="text-end">${label}<div class="small text-muted mt-1">${it.probability===null? 'n/a' : Math.round(it.probability*100)+'%'}</div></div></div>`;
+        }).join('');
+      }
+
+      async function callPredict(url) {
+        const resp = await fetch('/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+        return resp.json().then(data => ({ ok: resp.ok, data }));
+      }
+
+      detectBtn.addEventListener('click', async () => {
+        const url = urlInput.value.trim();
+        if (!url) return;
+        labelText.textContent = 'Checking...';
+        urlText.textContent = url;
+        resultCard.classList.remove('d-none');
+        probVal.textContent = '...';
+        probBar.style.width = '10%';
+        try {
+          const { ok, data } = await callPredict(url);
+          if (!ok) {
+            labelText.textContent = 'Error';
+            predBadge.innerHTML = '<span class="badge bg-secondary">Error</span>';
+            probVal.textContent = data.error || 'n/a';
+            probBar.style.width = '0%';
+            return;
+          }
+          showResult(data.url, data.prediction, data.probability);
+        } catch (e) {
+          labelText.textContent = 'Error';
+          predBadge.innerHTML = '<span class="badge bg-secondary">Error</span>';
+          probVal.textContent = e.message;
+        }
+      });
+
+      document.querySelectorAll('.example-badge').forEach(b => b.addEventListener('click', (ev) => {
+        const u = ev.currentTarget.getAttribute('data-url');
+        urlInput.value = u;
+      }));
+
+      clearHistory.addEventListener('click', () => { localStorage.removeItem('phish_history'); renderHistory(); });
+
+      copyModelInfo.addEventListener('click', () => {
+        const items = JSON.parse(localStorage.getItem('phish_history')||'[]');
+        const text = items.map(i => `${i.time} - ${i.url} -> ${i.prediction} (${i.probability===null? 'n/a' : Math.round(i.probability*100)+'%'})`).join('\n');
+        navigator.clipboard?.writeText(text).then(()=> alert('Copied history to clipboard'));
+      });
+
+      // initial render
+      renderHistory();
+    </script>
+  </body>
+</html>
