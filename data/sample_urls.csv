@@ -1,0 +1,8 @@
+url,label
+http://192.168.0.1/login,1
+https://secure-paypal.com/confirm,1
+http://example.com,0
+https://www.google.com,0
+http://paypal.login-user.com/verify,1
+https://github.com,0
+http://update-account-settings.example.com,1
