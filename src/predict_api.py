@@ -31,7 +31,11 @@ def predict():
     if not url:
         return jsonify({'error': 'Missing "url" in JSON body'}), 400
 
-    model_bundle = load_model()
+    try:
+        model_bundle = load_model()
+    except FileNotFoundError as e:
+        return jsonify({'error': str(e)}), 503
+
     clf = model_bundle['model']
 
     feats = extract_features(url)
@@ -42,7 +46,10 @@ def predict():
     except Exception:
         proba = None
 
-    pred = int(clf.predict([feats])[0])
+    try:
+        pred = int(clf.predict([feats])[0])
+    except Exception as e:
+        return jsonify({'error': 'Prediction failed', 'detail': str(e)}), 500
 
     return jsonify({'url': url, 'prediction': int(pred), 'probability': proba})
 
