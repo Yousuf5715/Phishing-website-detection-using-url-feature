@@ -1,5 +1,6 @@
 import os
 import joblib
+import pandas as pd
 from flask import Flask, request, jsonify, send_from_directory
 from feature_extraction import extract_features, FEATURE_NAMES
 
@@ -39,15 +40,17 @@ def predict():
     clf = model_bundle['model']
 
     feats = extract_features(url)
+    X = pd.DataFrame([feats], columns=FEATURE_NAMES)
+
     proba = None
     try:
-        proba_arr = clf.predict_proba([feats])[0]
+        proba_arr = clf.predict_proba(X)[0]
         proba = float(max(proba_arr))
     except Exception:
         proba = None
 
     try:
-        pred = int(clf.predict([feats])[0])
+        pred = int(clf.predict(X)[0])
     except Exception as e:
         return jsonify({'error': 'Prediction failed', 'detail': str(e)}), 500
 
