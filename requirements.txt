@@ -1,6 +1,6 @@
 flask
 pandas
-scikit-learn
+scikit-learn==1.8.0
 joblib
 tldextract
 gunicorn
