@@ -52,5 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('--data', default='data/sample_urls.csv', help='CSV file with columns url,label')
     parser.add_argument('--out', default='models/model.joblib', help='Output path for trained model')
     parser.add_argument('--create-if-missing', action='store_true', help='Create a starter CSV at --data path if the file does not exist')
+    parser.add_argument('--no-create-if-missing', action='store_false', dest='create_if_missing', help="Don't auto-create a starter CSV if the file is missing")
+    parser.set_defaults(create_if_missing=True)
     args = parser.parse_args()
     train(args.data, args.out, create_if_missing=args.create_if_missing)
